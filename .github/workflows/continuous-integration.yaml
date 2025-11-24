@@ -23,7 +23,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@v2"
         with:
-          php-version: "8.3"
+          php-version: "8.4"
           coverage: "none"
 
       - name: "Install dependencies (Composer)"
@@ -44,7 +44,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@v2"
         with:
-          php-version: "8.3"
+          php-version: "8.4"
           coverage: "none"
 
       - name: "Install dependencies (Composer)"
@@ -68,6 +68,7 @@ jobs:
         php-version:
           - "8.2"
           - "8.3"
+          - "8.4"
         swoole-version:
           - "5.1.6"
           - "6.0.0"
@@ -102,7 +103,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@v2"
         with:
-          php-version: "8.3"
+          php-version: "8.4"
           extensions: "swoole-6.0.0"
           ini-values: "memory_limit=-1"
           coverage: "pcov"
@@ -129,6 +130,7 @@ jobs:
         php-version:
           - "8.2"
           - "8.3"
+          - "8.4"
         swoole-version:
           - "5.1.6"
           - "6.0.0"

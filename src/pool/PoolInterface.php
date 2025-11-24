@@ -20,6 +20,8 @@ interface PoolInterface
      */
     public function return(mixed &$poolItemRef): void;
 
+    public function hasBoundItem(): bool;
+
     /**
      * @return array{
      *     all_item_count: int,

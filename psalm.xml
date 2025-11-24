@@ -23,4 +23,13 @@
         <file name="./vendor/swoole/ide-helper/src/swoole_library/src/core/Coroutine/functions.php"/>
         <file name="./vendor/swoole/ide-helper/src/swoole_library/src/core/Coroutine/WaitGroup.php"/>
     </stubs>
+
+    <issueHandlers>
+        <MissingOverrideAttribute errorLevel="suppress"/>
+        <ClassMustBeFinal errorLevel="suppress"/>
+        <InvalidOperand errorLevel="suppress"/>
+        <PossiblyFalseOperand errorLevel="suppress"/>
+        <MissingClosureReturnType errorLevel="suppress"/>
+        <RedundantCondition errorLevel="suppress"/>
+    </issueHandlers>
 </psalm>

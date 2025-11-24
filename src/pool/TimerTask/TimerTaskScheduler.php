@@ -36,7 +36,7 @@ class TimerTaskScheduler implements TimerTaskSchedulerInterface
         $this->timerTaskIds = [];
 
         foreach ($this->timerTasks as $timerTask) {
-            /** @see \Allsilaevex\Pool\TimerTask\TimerTaskSchedulerAwareTrait */
+            /** @see TimerTaskSchedulerAwareTrait */
             if (method_exists($timerTask, 'setTimerTaskScheduler')) {
                 $timerTask->setTimerTaskScheduler($this);
             }

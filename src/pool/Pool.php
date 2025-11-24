@@ -77,10 +77,8 @@ class Pool implements PoolInterface, PoolControlInterface
     {
         $this->timerTaskScheduler?->stop();
 
-        // @phpstan-ignore-next-line
         $this->idledItemStorage->removeAll($this->idledItemStorage);
 
-        // @phpstan-ignore-next-line
         $this->borrowedItemStorage->removeAll($this->borrowedItemStorage);
 
         $this->concurrentBag->close();
@@ -178,6 +176,14 @@ class Pool implements PoolInterface, PoolControlInterface
         if (!$isReturned) {
             $this->idledItemStorage->detach($poolItemWrapper);
         }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hasBoundItem(): bool
+    {
+        return array_key_exists(Coroutine::getCid(), $this->itemToCoroutineBindings);
     }
 
     /**
