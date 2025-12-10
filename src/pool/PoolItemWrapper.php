@@ -100,7 +100,7 @@ class PoolItemWrapper implements PoolItemWrapperInterface
         $this->selfCheck();
 
         // destruct first
-        if ($this->item !== null) {
+        if (isset($this->item)) {
             $this->factory->destroy($this->item);
         }
         $this->item = null;
@@ -237,7 +237,7 @@ class PoolItemWrapper implements PoolItemWrapperInterface
             $stateStatus->close();
         }
 
-        if ($this->item !== null) {
+        if (isset($this->item)) {
             $this->factory->destroy($this->item);
         }
         $this->item = null;
