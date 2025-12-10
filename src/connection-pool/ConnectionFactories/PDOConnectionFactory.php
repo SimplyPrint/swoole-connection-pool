@@ -32,4 +32,10 @@ readonly class PDOConnectionFactory implements PoolItemFactoryInterface
             options: $this->options,
         );
     }
+
+    public function destroy(mixed $item): void
+    {
+        // PDO connections close automatically when set to null
+        // No explicit action needed
+    }
 }

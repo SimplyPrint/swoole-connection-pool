@@ -20,6 +20,7 @@ class PoolItemWrapperFactoryTest extends TestCase
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
         $factoryMock->method('create')->willReturn('item');
+        $factoryMock->method('destroy');
 
         $poolItemTimerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 

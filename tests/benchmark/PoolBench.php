@@ -130,6 +130,10 @@ class PoolBench
 
                 return new stdClass();
             }
+
+            public function destroy(mixed $item): void
+            {
+            }
         };
     }
 }

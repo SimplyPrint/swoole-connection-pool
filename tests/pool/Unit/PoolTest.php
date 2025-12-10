@@ -56,6 +56,7 @@ class PoolTest extends TestCase
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
         $factoryMock->method('create')->willReturn(new stdClass());
+        $factoryMock->method('destroy');
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
@@ -81,6 +82,7 @@ class PoolTest extends TestCase
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
         $factoryMock->method('create')->willReturn(new stdClass());
+        $factoryMock->method('destroy');
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
@@ -180,6 +182,7 @@ class PoolTest extends TestCase
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
         $factoryMock->method('create')->willReturn(new stdClass());
+        $factoryMock->method('destroy');
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 

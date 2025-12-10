@@ -100,6 +100,9 @@ class PoolItemWrapper implements PoolItemWrapperInterface
         $this->selfCheck();
 
         // destruct first
+        if ($this->item !== null) {
+            $this->factory->destroy($this->item);
+        }
         $this->item = null;
         $this->itemCreatedAt = .0;
 
@@ -234,6 +237,9 @@ class PoolItemWrapper implements PoolItemWrapperInterface
             $stateStatus->close();
         }
 
+        if ($this->item !== null) {
+            $this->factory->destroy($this->item);
+        }
         $this->item = null;
         $this->itemCreatedAt = hrtime(true);
     }

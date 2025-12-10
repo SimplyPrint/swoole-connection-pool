@@ -20,6 +20,7 @@ class PoolItemWrapperTest extends TestCase
     public function testUnusabilityAfterClose(): void
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('destroy');
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
         $timerTaskSchedulerMock->expects(self::once())->method('stop');
@@ -37,6 +38,7 @@ class PoolItemWrapperTest extends TestCase
     public function testStats(): void
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('destroy');
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
         $timerTaskSchedulerMock->expects(self::once())->method('stop');

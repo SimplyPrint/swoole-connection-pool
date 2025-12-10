@@ -14,4 +14,9 @@ interface PoolItemFactoryInterface
      * @throws Exceptions\PoolItemCreationException
      */
     public function create(): mixed;
+
+    /**
+     * @param TItem $item
+     */
+    public function destroy(mixed $item): void;
 }

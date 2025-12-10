@@ -19,6 +19,7 @@ class PoolItemWrapperTest extends TestCase
     public function testCreatedWithIdleState(): void
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('destroy');
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
         $poolItemWrapper = new PoolItemWrapper($factoryMock, $timerTaskSchedulerMock);
@@ -32,6 +33,7 @@ class PoolItemWrapperTest extends TestCase
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
         $factoryMock->expects(self::once())->method('create')->willReturn(value: 'item');
+        $factoryMock->method('destroy');
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
@@ -45,6 +47,7 @@ class PoolItemWrapperTest extends TestCase
     public function testIdIsUnique(): void
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('destroy');
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
         $poolItemWrapper1 = new PoolItemWrapper($factoryMock, $timerTaskSchedulerMock);
@@ -56,6 +59,7 @@ class PoolItemWrapperTest extends TestCase
     public function testCompareAndSetState(): void
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('destroy');
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
         $poolItemWrapper = new PoolItemWrapper($factoryMock, $timerTaskSchedulerMock);
@@ -69,6 +73,7 @@ class PoolItemWrapperTest extends TestCase
     public function testWaitForCompareAndSetState(): void
     {
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('destroy');
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
         $poolItemWrapper = new PoolItemWrapper($factoryMock, $timerTaskSchedulerMock);
@@ -124,6 +129,10 @@ class PoolItemWrapperTest extends TestCase
                     }
                 };
             }
+
+            public function destroy(mixed $item): void
+            {
+            }
         };
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
@@ -135,5 +144,30 @@ class PoolItemWrapperTest extends TestCase
         $poolItemWrapper->close();
 
         static::assertEquals(0, $factory->count);
+    }
+
+    public function testDestroyCalledOnClose(): void
+    {
+        $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('create')->willReturn('item');
+        $factoryMock->expects(self::once())->method('destroy')->with('item');
+
+        $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
+
+        $poolItemWrapper = new PoolItemWrapper($factoryMock, $timerTaskSchedulerMock);
+        $poolItemWrapper->close();
+    }
+
+    public function testDestroyCalledOnRecreate(): void
+    {
+        $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
+        $factoryMock->method('create')->willReturn('item');
+        $factoryMock->expects(self::exactly(2))->method('destroy')->with('item');
+
+        $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
+
+        $poolItemWrapper = new PoolItemWrapper($factoryMock, $timerTaskSchedulerMock);
+        $poolItemWrapper->recreateItem();
+        $poolItemWrapper->close();
     }
 }

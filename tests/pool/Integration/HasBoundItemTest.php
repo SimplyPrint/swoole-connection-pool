@@ -102,6 +102,10 @@ class HasBoundItemTest extends TestCase
             {
                 return new stdClass();
             }
+
+            public function destroy(mixed $item): void
+            {
+            }
         };
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);

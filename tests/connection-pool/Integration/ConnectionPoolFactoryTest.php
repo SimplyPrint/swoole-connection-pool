@@ -41,6 +41,7 @@ class ConnectionPoolFactoryTest extends TestCase
 
         $poolItemFactoryInterfaceMock = $this->createMock(PoolItemFactoryInterface::class);
         $poolItemFactoryInterfaceMock->method('create')->willReturn($connection);
+        $poolItemFactoryInterfaceMock->method('destroy');
 
         $connectionPoolFactory = new ConnectionPoolFactory(size: 1, factory: $poolItemFactoryInterfaceMock);
 

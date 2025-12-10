@@ -94,6 +94,10 @@ class PoolTest extends TestCase
 
                 return $obj;
             }
+
+            public function destroy(mixed $item): void
+            {
+            }
         };
 
         $pool = $this->createSimplePool(size: 1, factory: $factory);
@@ -124,6 +128,10 @@ class PoolTest extends TestCase
                 $obj->id = 0;
 
                 return $obj;
+            }
+
+            public function destroy(mixed $item): void
+            {
             }
         };
 
@@ -164,6 +172,10 @@ class PoolTest extends TestCase
                 $obj->id = ++$this->itemId;
 
                 return $obj;
+            }
+
+            public function destroy(mixed $item): void
+            {
             }
         };
 
@@ -241,6 +253,10 @@ class PoolTest extends TestCase
 
                 return new stdClass();
             }
+
+            public function destroy(mixed $item): void
+            {
+            }
         };
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
@@ -281,6 +297,10 @@ class PoolTest extends TestCase
                 $this->itemCreatedCount++;
 
                 return new stdClass();
+            }
+
+            public function destroy(mixed $item): void
+            {
             }
         };
 
@@ -327,6 +347,10 @@ class PoolTest extends TestCase
                         $this->factory->count--;
                     }
                 };
+            }
+
+            public function destroy(mixed $item): void
+            {
             }
         };
 
@@ -386,6 +410,7 @@ class PoolTest extends TestCase
 
         $factoryMock = $this->createMock(PoolItemFactoryInterface::class);
         $factoryMock->method('create')->willReturn($item);
+        $factoryMock->method('destroy');
 
         $timerTaskSchedulerMock = $this->createMock(TimerTaskSchedulerInterface::class);
 
@@ -466,6 +491,10 @@ class PoolTest extends TestCase
                 $obj->id = uniqid(prefix: 'test', more_entropy: true);
 
                 return $obj;
+            }
+
+            public function destroy(mixed $item): void
+            {
             }
         };
 
