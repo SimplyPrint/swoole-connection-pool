@@ -8,12 +8,19 @@ use stdClass;
 use Allsilaevex\Pool\Pool;
 use PHPUnit\Framework\TestCase;
 use Allsilaevex\Pool\PoolConfig;
+use Allsilaevex\Pool\PoolMetrics;
+use Allsilaevex\Pool\PoolItemWrapper;
+use PHPUnit\Framework\Attributes\UsesClass;
 use Allsilaevex\Pool\PoolItemWrapperFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Allsilaevex\Pool\PoolItemFactoryInterface;
 use Allsilaevex\Pool\TimerTask\TimerTaskSchedulerInterface;
 
 #[CoversClass(Pool::class)]
+#[UsesClass(PoolConfig::class)]
+#[UsesClass(PoolMetrics::class)]
+#[UsesClass(PoolItemWrapper::class)]
+#[UsesClass(PoolItemWrapperFactory::class)]
 class HasBoundItemTest extends TestCase
 {
     public function testHasItemIsFalseWhenNotBound(): void
