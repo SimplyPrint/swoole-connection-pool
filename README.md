@@ -63,6 +63,23 @@ require_once __DIR__ . '/vendor/autoload.php';
 });
 ```
 
+<h3>Connection lifetime hooks</h3>
+
+Pool item hooks can be attached to the connection pool factory without replacing its built-in connection checks.
+For example, reset a connection after it is returned and before it becomes available to another coroutine:
+
+```php
+$connectionPoolFactory->addPoolItemHook(
+    new \Allsilaevex\ConnectionPool\Hooks\ConnectionResetHook(
+        static function (\PDO $connection): void {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+        },
+    ),
+);
+```
+
 <h2>✨ Features</h2>
 
 * High-performance even in unusual cases (see <a href="#benchmarks">Benchmarks</a>)

@@ -15,6 +15,7 @@ use Allsilaevex\Pool\PoolItemWrapperFactory;
 use Allsilaevex\Pool\Hook\PoolItemHookManager;
 use Allsilaevex\Pool\PoolItemFactoryInterface;
 use Allsilaevex\Pool\PoolItemWrapperInterface;
+use Allsilaevex\Pool\Hook\PoolItemHookInterface;
 use Allsilaevex\Pool\TimerTask\TimerTaskInterface;
 use Allsilaevex\Pool\TimerTask\TimerTaskScheduler;
 use Allsilaevex\ConnectionPool\Tasks\ResizerTimerTask;
@@ -46,6 +47,9 @@ class ConnectionPoolFactory
     /** @var list<callable(TConnection): bool> */
     protected array $checkers;
 
+    /** @var list<PoolItemHookInterface<TConnection>> */
+    protected array $poolItemHooks;
+
     protected LoggerInterface $logger;
 
     /** @var list<KeepaliveCheckerInterface<TConnection>> */
@@ -60,6 +64,7 @@ class ConnectionPoolFactory
         protected PoolItemFactoryInterface $factory,
     ) {
         $this->checkers = [];
+        $this->poolItemHooks = [];
         $this->logger = new NullLogger();
         $this->keepaliveCheckers = [];
 
@@ -206,6 +211,18 @@ class ConnectionPoolFactory
     }
 
     /**
+     * @param  PoolItemHookInterface<TConnection>  $poolItemHook
+     *
+     * @return self<TConnection>
+     */
+    public function addPoolItemHook(PoolItemHookInterface $poolItemHook): self
+    {
+        $this->poolItemHooks[] = $poolItemHook;
+
+        return $this;
+    }
+
+    /**
      * @param  KeepaliveCheckerInterface<TConnection>  $keepaliveChecker
      *
      * @return self<TConnection>
@@ -259,7 +276,10 @@ class ConnectionPoolFactory
             ...$poolItemTimerTasks,
         ]);
 
-        $hooks = array_map(fn (callable $checker) => new ConnectionCheckHook($checker, $this->logger), $this->checkers);
+        $hooks = [
+            ...$this->poolItemHooks,
+            ...array_map(fn (callable $checker) => new ConnectionCheckHook($checker, $this->logger), $this->checkers),
+        ];
 
         /**
          * @var Pool<TConnection> $pool
