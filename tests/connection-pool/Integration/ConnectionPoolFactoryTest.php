@@ -50,6 +50,7 @@ class ConnectionPoolFactoryTest extends TestCase
         $poolItemFactoryInterfaceMock->method('destroy');
 
         $connectionPoolFactory = new ConnectionPoolFactory(size: 1, factory: $poolItemFactoryInterfaceMock);
+        $connectionPoolFactory->setAutoReturn(false);
 
         $pool = $connectionPoolFactory->instantiate();
 
@@ -57,6 +58,7 @@ class ConnectionPoolFactoryTest extends TestCase
         $connectionFromPool = $pool->borrow();
 
         static::assertEquals($connection->id, $connectionFromPool->id);
+        $pool->return($connectionFromPool);
     }
 
     public function testPoolItemHooksAreCombinedWithConnectionCheckers(): void
@@ -69,6 +71,7 @@ class ConnectionPoolFactoryTest extends TestCase
         $poolItemFactoryInterfaceMock->method('destroy');
 
         $connectionPoolFactory = new ConnectionPoolFactory(size: 1, factory: $poolItemFactoryInterfaceMock);
+        $connectionPoolFactory->setAutoReturn(false);
         $connectionPoolFactory->addConnectionChecker(static function (object $connection) use (&$events): bool {
             $events[] = 'before_borrow';
 
