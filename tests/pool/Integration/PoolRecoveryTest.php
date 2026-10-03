@@ -13,8 +13,10 @@ use Psr\Log\LoggerInterface;
 use Swoole\Coroutine\Channel;
 use PHPUnit\Framework\TestCase;
 use Allsilaevex\Pool\PoolConfig;
+use Allsilaevex\Pool\PoolMetrics;
 use Allsilaevex\Pool\PoolItemState;
 use Allsilaevex\Pool\PoolItemWrapper;
+use PHPUnit\Framework\Attributes\UsesClass;
 use Allsilaevex\Pool\PoolItemWrapperFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Allsilaevex\Pool\Hook\PoolItemHookManager;
@@ -38,6 +40,13 @@ use Allsilaevex\ConnectionPool\Tasks\PoolItemUpdaterTimerTask;
 #[CoversClass(PoolItemWrapper::class)]
 #[CoversClass(PoolItemUpdaterTimerTask::class)]
 #[CoversClass(KeepaliveCheckTimerTask::class)]
+#[UsesClass(PoolConfig::class)]
+#[UsesClass(PoolMetrics::class)]
+#[UsesClass(PoolItemHookManager::class)]
+#[UsesClass(PoolItemWrapperFactory::class)]
+#[UsesClass(TimerTaskScheduler::class)]
+#[UsesClass(ConnectionCheckHook::class)]
+#[UsesClass(ConnectionResetHook::class)]
 final class PoolRecoveryTest extends TestCase
 {
     /** @return iterable<string, array{bool}> */
