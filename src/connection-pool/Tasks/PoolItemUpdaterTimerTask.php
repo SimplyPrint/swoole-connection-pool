@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Allsilaevex\ConnectionPool\Tasks;
 
+use Throwable;
 use Psr\Log\LoggerInterface;
 use Allsilaevex\Pool\PoolItemState;
 use Allsilaevex\Pool\PoolItemWrapperInterface;
 use Allsilaevex\Pool\TimerTask\TimerTaskInterface;
 use Allsilaevex\Pool\Exceptions\PoolItemRemovedException;
-use Allsilaevex\Pool\Exceptions\PoolItemCreationException;
 
 use function is_null;
 
@@ -58,18 +58,20 @@ readonly class PoolItemUpdaterTimerTask implements TimerTaskInterface
 
         $logContext = ['item_id' => $runner->getId()];
 
-        if ($runner->stats()['item_lifetime_sec'] > $this->maxLifetimeSec) {
-            try {
-                $runner->recreateItem();
-            } catch (PoolItemCreationException $exception) {
-                $this->logger->error('Can\'t recreate item: ' . $exception->getMessage(), $logContext);
-            }
-        }
-
         try {
-            $runner->setState(PoolItemState::IDLE);
-        } catch (PoolItemRemovedException) {
-            $this->logger->info('Can\'t set IDLE state (item already removed)', $logContext);
+            if ($runner->stats()['item_lifetime_sec'] > $this->maxLifetimeSec) {
+                $runner->recreateItem();
+            }
+        } catch (Throwable $exception) {
+            try {
+                $this->logger->error('Can\'t recreate item: ' . $exception->getMessage(), $logContext + ['exception' => $exception]);
+            } catch (Throwable) {
+            }
+        } finally {
+            try {
+                $runner->setState(PoolItemState::IDLE);
+            } catch (PoolItemRemovedException) {
+            }
         }
     }
 
