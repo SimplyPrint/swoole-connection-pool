@@ -102,17 +102,20 @@ class Pool implements PoolInterface, PoolControlInterface
             increaseItemsOnEmptyPool: true,
         );
 
-        $this->poolItemHookManager?->run(PoolItemHook::BEFORE_BORROW, $poolItemWrapper);
+        try {
+            $this->poolItemHookManager?->run(PoolItemHook::BEFORE_BORROW, $poolItemWrapper);
 
-        if (!$poolItemWrapper->compareAndSetState(PoolItemState::RESERVED, PoolItemState::IN_USE)) {
-            throw new LogicException();
-        }
+            if (!$poolItemWrapper->compareAndSetState(PoolItemState::RESERVED, PoolItemState::IN_USE)) {
+                throw new LogicException();
+            }
 
-        $item = $poolItemWrapper->getItem();
+            $item = $poolItemWrapper->getItem();
 
-        // todo: in this case it's probably better to try getting a new pool item wrapper
-        if (is_null($item)) {
-            throw new Exceptions\BorrowTimeoutException('Can\'t get item after hooks');
+            if (is_null($item)) {
+                throw new Exceptions\BorrowTimeoutException('Can\'t get item after hooks');
+            }
+        } catch (Throwable $exception) {
+            $this->discardFailedReservation($poolItemWrapper, $exception);
         }
 
         $this->idledItemStorage->detach($poolItemWrapper);
@@ -152,21 +155,26 @@ class Pool implements PoolInterface, PoolControlInterface
         }
 
         if ($this->concurrentBag->isFull()) {
+            $this->removePoolItemWrapper($poolItemWrapper);
             return;
         }
 
         $this->metrics->itemInUseTotalSec += $poolItemWrapper->stats()['current_state_duration_sec'];
 
-        if (is_null($this->poolItemHookManager)) {
-            $poolItemWrapper->setState(PoolItemState::IDLE);
-        } else {
-            $poolItemWrapper->setState(PoolItemState::RESERVED);
+        try {
+            if (is_null($this->poolItemHookManager)) {
+                $poolItemWrapper->setState(PoolItemState::IDLE);
+            } else {
+                $poolItemWrapper->setState(PoolItemState::RESERVED);
 
-            $this->poolItemHookManager->run(PoolItemHook::AFTER_RETURN, $poolItemWrapper);
+                $this->poolItemHookManager->run(PoolItemHook::AFTER_RETURN, $poolItemWrapper);
 
-            if (!$poolItemWrapper->compareAndSetState(PoolItemState::RESERVED, PoolItemState::IDLE)) {
-                throw new LogicException();
+                if (!$poolItemWrapper->compareAndSetState(PoolItemState::RESERVED, PoolItemState::IDLE)) {
+                    throw new LogicException();
+                }
             }
+        } catch (Throwable $exception) {
+            $this->discardFailedReservation($poolItemWrapper, $exception);
         }
 
         $this->idledItemStorage->attach($poolItemWrapper, hrtime(true));
@@ -174,7 +182,7 @@ class Pool implements PoolInterface, PoolControlInterface
         $isReturned = $this->concurrentBag->push($poolItemWrapper, $this->config->returningTimeoutSec);
 
         if (!$isReturned) {
-            $this->idledItemStorage->detach($poolItemWrapper);
+            $this->removePoolItemWrapper($poolItemWrapper);
         }
     }
 
@@ -355,10 +363,30 @@ class Pool implements PoolInterface, PoolControlInterface
     {
         $this->idledItemStorage->detach($poolItemWrapper);
 
-        $poolItemWrapper->close();
+        try {
+            $poolItemWrapper->close();
+        } finally {
+            $this->itemWrapperCount--;
+            $this->metrics->itemDeletedTotal++;
+        }
+    }
 
-        $this->itemWrapperCount--;
-        $this->metrics->itemDeletedTotal++;
+    /** @param PoolItemWrapperInterface<TItem> $poolItemWrapper */
+    private function discardFailedReservation(PoolItemWrapperInterface $poolItemWrapper, Throwable $exception): never
+    {
+        try {
+            $this->removePoolItemWrapper($poolItemWrapper);
+        } catch (Throwable $cleanupFailure) {
+            try {
+                $this->logger->error('Failed to dispose a reserved pool item.', [
+                    'exception' => $cleanupFailure,
+                    'cause' => $exception,
+                ]);
+            } catch (Throwable) {
+            }
+        }
+
+        throw $exception;
     }
 
     /**
@@ -450,7 +478,7 @@ class Pool implements PoolInterface, PoolControlInterface
 
             $recalculatedTimeLeftSec = max(.0001, $timeLeftSec - (hrtime(true) - $start) * 1e-9);
 
-            return $this->getReservedPoolItemWrapperWithExistingItem($recalculatedTimeLeftSec, increaseItemsOnEmptyPool: false);
+            return $this->getReservedPoolItemWrapperWithExistingItem($recalculatedTimeLeftSec, $increaseItemsOnEmptyPool);
         }
 
         return $poolItemWrapper;
