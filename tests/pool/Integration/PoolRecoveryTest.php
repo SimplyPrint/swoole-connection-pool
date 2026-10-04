@@ -35,6 +35,7 @@ use Allsilaevex\ConnectionPool\Hooks\ConnectionResetHook;
 use Allsilaevex\ConnectionPool\KeepaliveCheckerInterface;
 use Allsilaevex\Pool\Exceptions\PoolItemRemovedException;
 use Allsilaevex\Pool\Exceptions\PoolItemCreationException;
+use Allsilaevex\ConnectionPool\Tasks\LeakDetectionTimerTask;
 use Allsilaevex\ConnectionPool\Tasks\KeepaliveCheckTimerTask;
 use Allsilaevex\ConnectionPool\Tasks\PoolItemUpdaterTimerTask;
 
@@ -51,6 +52,7 @@ use Allsilaevex\ConnectionPool\Tasks\PoolItemUpdaterTimerTask;
 #[UsesClass(ConnectionCheckHook::class)]
 #[UsesClass(ConnectionResetHook::class)]
 #[UsesClass(ConnectionPoolFactory::class)]
+#[UsesClass(LeakDetectionTimerTask::class)]
 final class PoolRecoveryTest extends TestCase
 {
     /** @return iterable<string, array{positive-int}> */
