@@ -26,6 +26,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Allsilaevex\Pool\Test\Fixture\RecoveryItem;
 use Allsilaevex\Pool\Hook\PoolItemHookInterface;
 use Allsilaevex\Pool\TimerTask\TimerTaskScheduler;
+use Allsilaevex\ConnectionPool\ConnectionPoolFactory;
+use Allsilaevex\ConnectionPool\Tasks\ResizerTimerTask;
 use Allsilaevex\Pool\Test\Fixture\RecoveryItemFactory;
 use Allsilaevex\Pool\Exceptions\BorrowTimeoutException;
 use Allsilaevex\ConnectionPool\Hooks\ConnectionCheckHook;
@@ -40,6 +42,7 @@ use Allsilaevex\ConnectionPool\Tasks\PoolItemUpdaterTimerTask;
 #[CoversClass(PoolItemWrapper::class)]
 #[CoversClass(PoolItemUpdaterTimerTask::class)]
 #[CoversClass(KeepaliveCheckTimerTask::class)]
+#[CoversClass(ResizerTimerTask::class)]
 #[UsesClass(PoolConfig::class)]
 #[UsesClass(PoolMetrics::class)]
 #[UsesClass(PoolItemHookManager::class)]
@@ -47,8 +50,118 @@ use Allsilaevex\ConnectionPool\Tasks\PoolItemUpdaterTimerTask;
 #[UsesClass(TimerTaskScheduler::class)]
 #[UsesClass(ConnectionCheckHook::class)]
 #[UsesClass(ConnectionResetHook::class)]
+#[UsesClass(ConnectionPoolFactory::class)]
 final class PoolRecoveryTest extends TestCase
 {
+    /** @return iterable<string, array{positive-int}> */
+    public static function existingWaiterPools(): iterable
+    {
+        yield 'fixed minimum equals maximum' => [2];
+        yield 'adaptive minimum below maximum' => [1];
+    }
+
+    /** @param positive-int $minimumIdle */
+    #[DataProvider('existingWaiterPools')]
+    public function testDroppingPoolDuringYieldingFailedCreationReleasesTimers(int $minimumIdle): void
+    {
+        /** @var list<int> $timerIdsBefore */
+        $timerIdsBefore = iterator_to_array(\Swoole\Timer::list(), false);
+        $factory = new RecoveryItemFactory();
+        $entered = new Channel(1);
+        $failures = 0;
+        $factory->beforeCreate = static function () use ($entered, &$failures): void {
+            $entered->push(true, .001);
+            \Swoole\Coroutine::sleep(.12);
+            ++$failures;
+
+            throw new RuntimeException('backend remains unavailable');
+        };
+        $pool = ConnectionPoolFactory::create(2, $factory)->setMinimumIdle($minimumIdle)
+            ->instantiate('drop-pool-during-failed-creation');
+        $reference = WeakReference::create($pool);
+        $entered->pop(.001);
+        $inFlight = $entered->pop(.5);
+        unset($pool);
+        gc_collect_cycles();
+        $deadline = microtime(true) + 1;
+        while ($reference->get() !== null && microtime(true) < $deadline) {
+            \Swoole\Coroutine::sleep(.01);
+            gc_collect_cycles();
+        }
+        $released = $reference->get() === null;
+        /** @var list<int> $timerIdsAfter */
+        $timerIdsAfter = iterator_to_array(\Swoole\Timer::list(), false);
+        foreach ($timerIdsAfter as $timerId) {
+            if (!in_array($timerId, $timerIdsBefore, true)) {
+                \Swoole\Timer::clear($timerId);
+            }
+        }
+        \Swoole\Coroutine::sleep(.15);
+        gc_collect_cycles();
+        static::assertTrue($inFlight, 'Owner release must overlap the original timer factory I/O.');
+        static::assertSame($factory->creates, $failures, 'Cleanup must finish all original factory attempts.');
+        static::assertTrue($released, 'Dropping the last owner must release the pool after bounded factory failure.');
+        static::assertSame($timerIdsBefore, $timerIdsAfter, 'Pool-owned timers must retire after the last owner is dropped.');
+    }
+
+    /** @param positive-int $minimumIdle */
+    #[DataProvider('existingWaiterPools')]
+    public function testExistingBorrowerRecoversAfterFailedCreationWithoutAnotherBorrow(int $minimumIdle): void
+    {
+        $factory = new RecoveryItemFactory();
+        $creationFailed = new Channel(1);
+        $done = new Channel(1);
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->method('error')->willReturnCallback(static function () use ($creationFailed): void {
+            $creationFailed->push(true, .001);
+        });
+        $configuration = ConnectionPoolFactory::create(2, $factory)
+            ->setMinimumIdle($minimumIdle)->setBindToCoroutine(true)->setAutoReturn(false)
+            ->setBorrowingTimeoutSec(2)->setReturningTimeoutSec(.02)->setLogger($logger);
+        $pool = $configuration->instantiate('existing-waiter-recovery');
+        static::assertInstanceOf(Pool::class, $pool);
+        while ($pool->getCurrentSize() < 2) {
+            static::assertTrue($pool->increaseItems());
+        }
+        \Swoole\Coroutine::sleep(.15);
+        $factory->createFailure = new RuntimeException('backend unavailable');
+        while ($pool->getIdleCount() > 0) {
+            $item = $pool->borrow();
+            $pool->removeItem($item);
+        }
+        static::assertSame(0, $pool->getCurrentSize());
+        static::assertCount(0, $pool->getBorrowedItemStorage());
+        $completed = false;
+        try {
+            \Swoole\Coroutine::create(static function () use ($pool, $done): void {
+                try {
+                    $item = $pool->borrow();
+                    $pool->return($item);
+                    $done->push(!$pool->hasBoundItem());
+                } catch (Throwable $failure) {
+                    $done->push($failure);
+                }
+            });
+            static::assertTrue($creationFailed->pop(.5));
+            static::assertSame(1, $pool->stats()['consumer_pending_count']);
+            $factory->createFailure = null;
+            $recovered = $done->pop(.5);
+            $completed = $recovered !== false;
+        } finally {
+            $factory->createFailure = null;
+            if (!$completed) {
+                $pool->increaseItems();
+                static::assertTrue($done->pop(.5), 'Diagnostic cleanup must release the original borrower.');
+            }
+            static::assertSame(0, $pool->stats()['consumer_pending_count']);
+            static::assertCount(0, $pool->getBorrowedItemStorage());
+            while ($pool->getIdleCount() > 0) {
+                static::assertTrue($pool->decreaseItems());
+            }
+        }
+        static::assertTrue($recovered, 'The original borrower must recover after backend restoration without another borrow.');
+    }
+
     /** @return iterable<string, array{bool}> */
     public static function fullReturnPaths(): iterable
     {
