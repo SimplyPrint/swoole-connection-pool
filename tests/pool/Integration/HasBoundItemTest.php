@@ -25,76 +25,70 @@ class HasBoundItemTest extends TestCase
 {
     public function testHasItemIsFalseWhenNotBound(): void
     {
-        \Swoole\Coroutine\go(function () {
-            $pool = $this->createSimplePool(bindToCoroutine: false);
+        $pool = $this->createSimplePool(bindToCoroutine: false);
 
-            static::assertFalse($pool->hasBoundItem());
+        static::assertFalse($pool->hasBoundItem());
 
-            $item = $pool->borrow();
-            static::assertFalse($pool->hasBoundItem());
+        $item = $pool->borrow();
+        static::assertFalse($pool->hasBoundItem());
 
-            $pool->return($item);
-        });
+        $pool->return($item);
     }
 
     public function testHasItemIsTrueWhenBound(): void
     {
-        \Swoole\Coroutine\go(function () {
-            $pool = $this->createSimplePool(bindToCoroutine: true);
+        $pool = $this->createSimplePool(bindToCoroutine: true);
 
-            static::assertFalse($pool->hasBoundItem());
+        static::assertFalse($pool->hasBoundItem());
 
-            $item = $pool->borrow();
-            static::assertTrue($pool->hasBoundItem());
+        $item = $pool->borrow();
+        static::assertTrue($pool->hasBoundItem());
 
-            $pool->return($item);
-            static::assertFalse($pool->hasBoundItem());
-        });
+        $pool->return($item);
+        static::assertFalse($pool->hasBoundItem());
     }
 
     public function testNestedBorrowingWithHasItemPattern(): void
     {
-        \Swoole\Coroutine\go(function () {
-            $pool = $this->createSimplePool(bindToCoroutine: true);
+        $pool = $this->createSimplePool(bindToCoroutine: true);
 
-            $withConnection = static function (callable $f) use ($pool) {
-                $hasConnection = $pool->hasBoundItem();
-                $connection = $pool->borrow();
+        $withConnection = static function (callable $f) use ($pool) {
+            $hasConnection = $pool->hasBoundItem();
+            $connection = $pool->borrow();
 
-                try {
-                    return $f($connection);
-                } finally {
-                    // Only return if we didn't have it before (i.e. we are the ones who borrowed it)
-                    if (!$hasConnection) {
-                        $pool->return($connection);
-                    }
+            try {
+                return $f($connection);
+            } finally {
+                // Only return if we didn't have it before (i.e. we are the ones who borrowed it)
+                if (!$hasConnection) {
+                    $pool->return($connection);
                 }
-            };
+            }
+        };
 
-            // Outer scope
-            $withConnection(static function (stdClass $conn1) use ($withConnection) {
-                $conn1->id = 'outer';
+        // Outer scope
+        $withConnection(static function (stdClass $conn1) use ($withConnection) {
+            $conn1->id = 'outer';
 
-                // Inner scope
-                $withConnection(static function (stdClass $conn2) use ($conn1) {
-                    // Should be same connection
-                    if ($conn1 !== $conn2) {
-                        throw new \RuntimeException('Expected same connection');
-                    }
-                    $conn2->id = 'inner';
-                });
-
-                // Back in outer scope
-                // Connection should still be valid and not returned to pool
-                /** @phpstan-ignore-next-line */
-                if ($conn1->id !== 'inner') {
-                    throw new \RuntimeException('Connection state lost');
+            // Inner scope
+            $withConnection(static function (stdClass $conn2) use ($conn1) {
+                // Should be same connection
+                if ($conn1 !== $conn2) {
+                    throw new \RuntimeException('Expected same connection');
                 }
+                $conn2->id = 'inner';
             });
 
-            // After all, connection should be returned
-            static::assertEquals(1, $pool->getIdleCount());
+            // Back in outer scope
+            // Connection should still be valid and not returned to pool
+            /** @phpstan-ignore-next-line */
+            if ($conn1->id !== 'inner') {
+                throw new \RuntimeException('Connection state lost');
+            }
         });
+
+        // After all, connection should be returned
+        static::assertEquals(1, $pool->getIdleCount());
     }
 
     /**

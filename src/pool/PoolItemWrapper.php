@@ -99,15 +99,25 @@ class PoolItemWrapper implements PoolItemWrapperInterface
     {
         $this->selfCheck();
 
-        // destruct first
-        if (isset($this->item)) {
-            $this->factory->destroy($this->item);
-        }
+        $oldItem = $this->item ?? null;
         $this->item = null;
         $this->itemCreatedAt = .0;
 
+        if ($oldItem !== null) {
+            $this->factory->destroy($oldItem);
+        }
+        unset($oldItem);
+
+        $this->selfCheck();
+        $newItem = $this->factory->create();
+
+        if ($this->state == PoolItemState::REMOVED) {
+            $this->factory->destroy($newItem);
+            throw new Exceptions\PoolItemRemovedException();
+        }
+
         /** @psalm-suppress InvalidPropertyAssignmentValue */
-        $this->item = $this->factory->create();
+        $this->item = $newItem;
 
         $this->itemCreatedAt = hrtime(true);
     }
@@ -231,17 +241,23 @@ class PoolItemWrapper implements PoolItemWrapperInterface
         $this->state = PoolItemState::REMOVED;
         $this->stateUpdatedAt = hrtime(true);
 
-        $this->timerTaskScheduler->stop();
-
-        foreach ($this->stateStatuses as $stateStatus) {
-            $stateStatus->close();
-        }
-
-        if (isset($this->item)) {
-            $this->factory->destroy($this->item);
-        }
+        $item = $this->item ?? null;
         $this->item = null;
-        $this->itemCreatedAt = hrtime(true);
+
+        try {
+            $this->timerTaskScheduler->stop();
+
+            foreach ($this->stateStatuses as $stateStatus) {
+                $stateStatus->close();
+            }
+
+            if ($item !== null) {
+                $this->factory->destroy($item);
+            }
+        } finally {
+            $this->item = null;
+            $this->itemCreatedAt = hrtime(true);
+        }
     }
 
     /**
